@@ -17,12 +17,7 @@
     _a < _b ? _a : _b;       \
 })
 
-typedef struct {
-    double x;
-    double y;
-} vector2;
-
-struct _perlinNoiseState {
+struct _perlinState {
     //uint32_t width;
     //uint32_t height;
     
@@ -32,7 +27,7 @@ struct _perlinNoiseState {
     uint32_t numOctaves;
     
     uint8_t* permutations;
-    vector2* vectors;
+    perlinVector2* vectors;
     
     bool stitch;
     uint32_t stitchArr[2];
@@ -43,8 +38,7 @@ struct _perlinNoiseState {
     uint8_t channelCount;
     bool grayScale;
     
-    double* offsetsX;
-    double* offsetsY;  
+    perlinVector2* offsets;
 };
 
 static inline double interpolate(double a0, double a1, double w) {
@@ -74,9 +68,9 @@ static inline int32_t getNextRandomValue(int32_t randomSeed) {
     return randomSeed;
 };
 
-static void generateRandom(int32_t randomSeed, uint8_t** permutations, vector2** vectors) {
+static void generateRandom(int32_t randomSeed, uint8_t** permutations, perlinVector2** vectors) {
     *permutations = malloc(256);
-    *vectors = malloc(sizeof(vector2) * 256 * 4);
+    *vectors = malloc(sizeof(perlinVector2) * 256 * 4);
     
     if (randomSeed <= 0) {
         randomSeed = abs(randomSeed - 1);
@@ -86,10 +80,10 @@ static void generateRandom(int32_t randomSeed, uint8_t** permutations, vector2**
     }
     
     for (int i = 0; i < 4; ++i) {
-        vector2* vectorArray = &(*vectors)[i * 256];
+        perlinVector2* vectorArray = &(*vectors)[i * 256];
         
         for (int j = 0; j < 256; ++j) {
-            vector2* vector = &vectorArray[j];
+            perlinVector2* vector = &vectorArray[j];
             
             randomSeed = getNextRandomValue(randomSeed);
             vector->x = (randomSeed % 512 - 256) / 256.0;
@@ -98,8 +92,13 @@ static void generateRandom(int32_t randomSeed, uint8_t** permutations, vector2**
             vector->y = (randomSeed % 512 - 256) / 256.0;
             
             double dist = sqrt(pow(vector->x, 2) + pow(vector->y, 2));
-            vector->x /= dist ? dist : 1; // fail-proof if 0, but might be inaccurate
-            vector->y /= dist ? dist : 1; // same
+            if (!dist) {
+                vector->x = INFINITY;
+                vector->y = INFINITY;
+            } else {
+                vector->x /= dist;// ? dist : 1; // fail-proof if 0, but might be inaccurate
+                vector->y /= dist;// ? dist : 1; // same
+            }
         }
     }
     
@@ -116,18 +115,18 @@ static void generateRandom(int32_t randomSeed, uint8_t** permutations, vector2**
     }
 }
 
-perlinNoiseState initPerlinNoise(
+perlinState initPerlinNoise(
         uint32_t width, uint32_t height,
         double baseX, double baseY,
         uint32_t numOctaves, int32_t randomSeed,
         bool stitch, bool fractalNoise,
         uint8_t channelOptions, bool grayScale,
-        double* offsetsX, double* offsetsY) {
+        perlinVector2* offsets) {
     
     if (!width || !height)
         return NULL;
     
-    perlinNoiseState state = malloc(sizeof(*state));
+    perlinState state = malloc(sizeof(*state));
     //state->width = width;
     //state->height = height;
     
@@ -184,28 +183,24 @@ perlinNoiseState initPerlinNoise(
     
     state->channelCount += ((channelOptions >> 3) & 1);
     
-    state->offsetsX = calloc(numOctaves, sizeof(double));
-    state->offsetsY = calloc(numOctaves, sizeof(double));
+    state->offsets = calloc(numOctaves, sizeof(perlinVector2));
     
-    if (offsetsX)
-        memcpy(state->offsetsX, offsetsX, sizeof(double) * numOctaves);
-        
-    if (offsetsY)
-        memcpy(state->offsetsY, offsetsY, sizeof(double) * numOctaves);
+    if (offsets)
+        memcpy(state->offsets, offsets, sizeof(perlinVector2) * numOctaves);
     
     return state;
 }
 
-uint32_t generatePerlinNoise(perlinNoiseState state, uint32_t x, uint32_t y) {
+uint32_t generatePerlinNoise(perlinState state, uint32_t x, uint32_t y) {
     double channelsOctave[4];
     double channels[4] = {0.0, 0.0, 0.0, 0.0};
     uint32_t stitchArr[2];
     
     uint8_t* permutations = state->permutations;
-    vector2* vectors = state->vectors;
+    perlinVector2* vectors = state->vectors;
     
     double channelAlpha = 255;
-    uint8_t red = 0, green = 0, blue = 0, alpha = 255;
+    int32_t red = 0, green = 0, blue = 0, alpha = 255;
     
     if (state->stitch) {
         memcpy(stitchArr, state->stitchArr, sizeof(stitchArr));
@@ -215,8 +210,8 @@ uint32_t generatePerlinNoise(perlinNoiseState state, uint32_t x, uint32_t y) {
     double baseY = state->baseY;
     
     for (uint32_t octave = 0; octave < state->numOctaves; ++octave) {
-        double offsetX = (state->offsetsX[octave] + x) * baseX + 4096.0;
-        double offsetY = (state->offsetsY[octave] + y) * baseY + 4096.0;
+        double offsetX = (state->offsets[octave].x + x) * baseX + 4096.0;
+        double offsetY = (state->offsets[octave].y + y) * baseY + 4096.0;
         
         int x0 = floor(offsetX);
         int x1 = x0 + 1;
@@ -257,7 +252,7 @@ uint32_t generatePerlinNoise(perlinNoiseState state, uint32_t x, uint32_t y) {
         
         for (uint8_t channel = 0; channel < state->channelCount; ++channel) {
             double n0, n1;
-            vector2* vectorArray = &vectors[channel * 256];
+            perlinVector2* vectorArray = &vectors[channel * 256];
             
             n0 = vectorArray[v1].x * dx0 + vectorArray[v1].y * dy0;
             n1 = vectorArray[v2].x * dx1  + vectorArray[v2].y * dy0;
@@ -289,39 +284,49 @@ uint32_t generatePerlinNoise(perlinNoiseState state, uint32_t x, uint32_t y) {
             stitchArr[1] *= 2;
         }
     }
-        
+    
     uint8_t nextChannel = 0;
-    if (state->grayScale) {
-        red = state->fractalNoise ? ((int)round(channels[nextChannel++] + 255.0) >> 1) : round(channels[nextChannel++]);
-        green = red;
-        blue = red;
+    if (state->fractalNoise) {
+        if (state->grayScale) {
+            red = lrint(channels[nextChannel++] + 255.0) >> 1;
+            green = red;
+            blue = red;
+            
+        } else {
+            if (state->channelOptions & 1) red = lrint(channels[nextChannel++] + 255.0) >> 1;
+            if (state->channelOptions & 2) green = lrint(channels[nextChannel++] + 255.0) >> 1;
+            if (state->channelOptions & 4) blue = lrint(channels[nextChannel++] + 255.0) >> 1;
+        }
         
+        if (state->channelOptions & 8) alpha = lrint(channels[nextChannel] + 255.0) >> 1;
+    
     } else {
-        nextChannel = 0;
-        if (state->channelOptions & 1)
-            red = state->fractalNoise ? ((int)round(channels[nextChannel++] + 255.0) >> 1) : round(channels[nextChannel++]);
-        if (state->channelOptions & 2)
-            green = state->fractalNoise ? ((int)round(channels[nextChannel++] + 255.0) >> 1) : round(channels[nextChannel++]);
-        if (state->channelOptions & 4)
-            blue = state->fractalNoise ? ((int)round(channels[nextChannel++] + 255.0) >> 1) : round(channels[nextChannel++]);
+        if (state->grayScale) {
+            red = lrint(channels[nextChannel++]);
+            green = red;
+            blue = red;
+            
+        } else {
+            if (state->channelOptions & 1) red = lrint(channels[nextChannel++]);
+            if (state->channelOptions & 2) green = lrint(channels[nextChannel++]);
+            if (state->channelOptions & 4) blue = lrint(channels[nextChannel++]);
+        }
+        
+        if (state->channelOptions & 8) alpha = lrint(channels[nextChannel]);
     }
     
-    if (state->channelOptions & 8)
-        alpha = state->fractalNoise ? ((int)round(channels[nextChannel] + 255.0) >> 1) : round(channels[nextChannel]);
-    
-    alpha = min(max(alpha, 0U), 255U);
-    red = min(max(red, 0U), alpha);
-    green = min(max(green, 0U), alpha);
-    blue = min(max(blue, 0U), alpha);
+    alpha = min(max(alpha, 0), 255);
+    red = min(max(red, 0), alpha);
+    green = min(max(green, 0), alpha);
+    blue = min(max(blue, 0), alpha);
     
     uint32_t color = (alpha << 24) | (red << 16) | (green << 8) | blue;
     return unmultiplyColor(color);
 }
 
-void freePerlinNoise(perlinNoiseState state) {
+void freePerlinNoise(perlinState state) {
     free(state->permutations);
     free(state->vectors);
-    free(state->offsetsX);
-    free(state->offsetsY);
+    free(state->offsets);
     free(state);
 }

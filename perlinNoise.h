@@ -3,17 +3,23 @@
 
 #ifndef AS3_PERLIN_NOISE_H
 #define AS3_PERLIN_NOISE_H
-typedef struct _perlinNoiseState *perlinNoiseState;
 
-perlinNoiseState initPerlinNoise(
+typedef struct {
+    double x;
+    double y;
+} perlinVector2;
+
+typedef struct _perlinState *perlinState;
+
+perlinState initPerlinNoise(
         uint32_t width, uint32_t height,
         double baseX, double baseY,
         uint32_t numOctaves, int32_t randomSeed,
         bool stitch, bool fractalNoise,
         uint8_t channelOptions, bool grayScale,
-        double* offsetsX, double* offsetsY);
+        perlinVector2* offsets);
 
-uint32_t generatePerlinNoise(perlinNoiseState state, uint32_t x, uint32_t y);
+uint32_t generatePerlinNoise(perlinState state, uint32_t x, uint32_t y);
 
-void freePerlinNoise(perlinNoiseState state);
+void freePerlinNoise(perlinState state);
 #endif
