@@ -187,12 +187,8 @@ perlinState initPerlinNoise(
 }
 
 uint32_t generatePerlinNoise(perlinState state, uint32_t x, uint32_t y) {
-    double channelsOctave[4];
     double channels[4] = {0.0, 0.0, 0.0, 0.0};
     uint32_t stitchArr[2];
-    
-    uint8_t* permutations = state->permutations;
-    perlinVector2* vectors = state->vectors;
     
     double channelAlpha = 255;
     int32_t red = 0, green = 0, blue = 0, alpha = 255;
@@ -208,11 +204,17 @@ uint32_t generatePerlinNoise(perlinState state, uint32_t x, uint32_t y) {
         double offsetX = (state->offsets[octave].x + x) * baseX + 4096.0;
         double offsetY = (state->offsets[octave].y + y) * baseY + 4096.0;
         
-        int x0 = floor(offsetX);
+        int x0 = (int)floor(offsetX);
         int x1 = x0 + 1;
         
-        int y0 = floor(offsetY);
+        int y0 = (int)floor(offsetY);
         int y1 = y0 + 1;
+        
+        double dx0 = offsetX - x0; // sx
+        double dx1 = dx0 - 1.0;
+        
+        double dy0 = offsetY - y0; // sy
+        double dy1 = dy0 - 1.0;
         
         if (state->stitch) {
             int tmp1 = stitchArr[0] + 4096;
@@ -231,42 +233,31 @@ uint32_t generatePerlinNoise(perlinState state, uint32_t x, uint32_t y) {
                 y1 -= stitchArr[1];
         }
         
-        int idx1 = permutations[x0 & 255];
-        int idx2 = permutations[x1 & 255];
+        int idx1 = state->permutations[x0 & 255];
+        int idx2 = state->permutations[x1 & 255];
         
-        int v1 = permutations[((y0 & 255) + idx1) & 255];
-        int v2 = permutations[((y0 & 255) + idx2) & 255];
-        int v3 = permutations[((y1 & 255) + idx1) & 255];
-        int v4 = permutations[((y1 & 255) + idx2) & 255];
-        
-        double dx0 = offsetX - floor(offsetX); // sx
-        double dx1 = dx0 - 1.0;
-        
-        double dy0 = offsetY - floor(offsetY); // sy
-        double dy1 = dy0 - 1.0;
+        int v1 = state->permutations[(y0 + idx1) & 255];
+        int v2 = state->permutations[(y0 + idx2) & 255];
+        int v3 = state->permutations[(y1 + idx1) & 255];
+        int v4 = state->permutations[(y1 + idx2) & 255];
         
         for (uint8_t channel = 0; channel < state->channelCount; ++channel) {
             double n0, n1;
-            perlinVector2* vectorArray = &vectors[channel * 256];
+            perlinVector2* vectorArray = &state->vectors[channel * 256];
             
             n0 = vectorArray[v1].x * dx0 + vectorArray[v1].y * dy0;
-            n1 = vectorArray[v2].x * dx1  + vectorArray[v2].y * dy0;
+            n1 = vectorArray[v2].x * dx1 + vectorArray[v2].y * dy0;
             double ix1 = interpolate(n0, n1, dx0);
             
             n0 = vectorArray[v3].x * dx0 + vectorArray[v3].y * dy1;
-            n1 = vectorArray[v4].x * dx1  + vectorArray[v4].y * dy1;
+            n1 = vectorArray[v4].x * dx1 + vectorArray[v4].y * dy1;
             double ix2 = interpolate(n0, n1, dx0);
             
-            channelsOctave[channel] = interpolate(ix1, ix2, dy0);
-        }
-        
-        if (state->fractalNoise) {
-            for (uint8_t channel = 0; channel < state->channelCount; ++channel) {
-                channels[channel] += channelsOctave[channel] * channelAlpha;
-            }
-        } else {
-            for (uint8_t channel = 0; channel < state->channelCount; ++channel) {
-                channels[channel] += fabs(channelsOctave[channel]) * channelAlpha;
+            double value = interpolate(ix1, ix2, dy0);
+            if (state->fractalNoise) {
+                channels[channel] += value * channelAlpha;
+            } else {
+                channels[channel] += fabs(value) * channelAlpha;
             }
         }
         
@@ -283,31 +274,31 @@ uint32_t generatePerlinNoise(perlinState state, uint32_t x, uint32_t y) {
     uint8_t nextChannel = 0;
     if (state->fractalNoise) {
         if (state->grayScale) {
-            red = lrint(channels[nextChannel++] + 255.0) >> 1;
+            red = (int)round(channels[nextChannel++] + 255.0) >> 1;
             green = red;
             blue = red;
             
         } else {
-            if (state->channelOptions & 1) red = lrint(channels[nextChannel++] + 255.0) >> 1;
-            if (state->channelOptions & 2) green = lrint(channels[nextChannel++] + 255.0) >> 1;
-            if (state->channelOptions & 4) blue = lrint(channels[nextChannel++] + 255.0) >> 1;
+            if (state->channelOptions & 1) red = (int)round(channels[nextChannel++] + 255.0) >> 1;
+            if (state->channelOptions & 2) green = (int)round(channels[nextChannel++] + 255.0) >> 1;
+            if (state->channelOptions & 4) blue = (int)round(channels[nextChannel++] + 255.0) >> 1;
         }
         
-        if (state->channelOptions & 8) alpha = lrint(channels[nextChannel] + 255.0) >> 1;
+        if (state->channelOptions & 8) alpha = (int)round(channels[nextChannel] + 255.0) >> 1;
     
     } else {
         if (state->grayScale) {
-            red = lrint(channels[nextChannel++]);
+            red = (int)round(channels[nextChannel++]);
             green = red;
             blue = red;
             
         } else {
-            if (state->channelOptions & 1) red = lrint(channels[nextChannel++]);
-            if (state->channelOptions & 2) green = lrint(channels[nextChannel++]);
-            if (state->channelOptions & 4) blue = lrint(channels[nextChannel++]);
+            if (state->channelOptions & 1) red = (int)round(channels[nextChannel++]);
+            if (state->channelOptions & 2) green = (int)round(channels[nextChannel++]);
+            if (state->channelOptions & 4) blue = (int)round(channels[nextChannel++]);
         }
         
-        if (state->channelOptions & 8) alpha = lrint(channels[nextChannel]);
+        if (state->channelOptions & 8) alpha = (int)round(channels[nextChannel]);
     }
     
     alpha = min(max(alpha, 0), 255);
