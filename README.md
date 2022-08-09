@@ -21,7 +21,13 @@ Please note that there is another edge case: for some seeds, Flash Player may di
 bitmapData.perlinNoise(500, 500, 16, 346, true, true, 7, false);
 ```
 
+## Building
 
+This library has no dependencies. You should be able to build it with your preferred C compiler and you can either create a shared library or add it to your project.
+
+It does not export any functions; you might have to add `__declspec(dllexport)` before the 3 functions in `perlinNoise.h` if you wanna build it as a DLL with MSVC. It is probably not be necessary with gcc when building as a shared library.
+
+There is a Python wrapper available in `tests/perlinNoise.py` if you manage to build a shared library.
 
 ## Documentation
 
