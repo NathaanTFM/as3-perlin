@@ -1,7 +1,6 @@
 import sys
 import os
 import itertools
-sys.path.append("..")
 
 from perlinNoise import initPerlinNoise, generatePerlinNoise, freePerlinNoise, perlinVector2
 from PIL import Image

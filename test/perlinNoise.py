@@ -6,7 +6,7 @@ class perlinVector2(ctypes.Structure):
         ("y", ctypes.c_double)
     ]
     
-perlinNoise = ctypes.CDLL(os.path.join(os.path.dirname(__file__), "perlinNoise.dll"))
+perlinNoise = ctypes.CDLL(os.path.abspath("perlinNoise.dll"))
 
 initPerlinNoise = perlinNoise.initPerlinNoise
 initPerlinNoise.argtypes = (ctypes.c_uint32, ctypes.c_uint32,

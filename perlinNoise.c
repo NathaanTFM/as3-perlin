@@ -3,19 +3,14 @@
 #include <string.h>
 #include "perlinNoise.h"
 
-#define max(a,b)             \
-({                           \
-    __typeof__ (a) _a = (a); \
-    __typeof__ (b) _b = (b); \
-    _a > _b ? _a : _b;       \
-})
+// THESE MACROS ARE UNSAFE!
+// We can use them because we apply them on variables instead of expressions.
+#undef max
+#define max(x, y) (((x) > (y)) ? (x) : (y))
 
-#define min(a,b)             \
-({                           \
-    __typeof__ (a) _a = (a); \
-    __typeof__ (b) _b = (b); \
-    _a < _b ? _a : _b;       \
-})
+#undef min
+#define min(x, y) (((x) < (y)) ? (x) : (y))
+
 
 struct _perlinState {
     //uint32_t width;
