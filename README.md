@@ -6,13 +6,13 @@ Accurate recreation of AS3 perlin noise function
 ### initPerlinNoise
 
 ```c
-perlinNoiseState initPerlinNoise(
+perlinState initPerlinNoise(
         uint32_t width, uint32_t height,
         double baseX, double baseY,
         uint32_t numOctaves, int32_t randomSeed,
         bool stitch, bool fractalNoise,
         uint8_t channelOptions, bool grayScale,
-        double* offsetsX, double* offsetsY);
+        perlinVector2* offsets);
 ```
         
 Initializes a Perlin noise image generator.
@@ -52,17 +52,15 @@ This algorithm results in smaller variations among neighboring pixel values.
 
 - grayScale — A bool value. If the value is true, a grayscale image is created by setting each of the red, green, and blue color channels to identical values. The alpha channel value is not affected if this value is set to true.
  
-- offsetsX — An array of doubles that correspond to x offsets for each octave. By manipulating the offset values you can smoothly scroll the layers of a perlinNoise image. Each point in the offset array affects a specific octave noise function.
- 
-- offsetsY — An array of doubles that correspond to y offsets for each octave.
+- offsetsX — An array of vector2 that correspond to x offsets for each octave. By manipulating the offset values you can smoothly scroll the layers of a perlinNoise image. Each point in the offset array affects a specific octave noise function.
 
-The `offsetsX` and `offsetsY` parameters are optional ; but if they are passed, they must contain at least `numOctaves` values, meaning `8 * numOctaves` bytes.
+The `offsets` parameter is optional ; when passed, it must contain at least `numOctaves` values, meaning `sizeof(perlinVector2) * numOctaves` bytes.
 
 
 ### generatePerlinNoise
 
 ```c
-uint32_t generatePerlinNoise(perlinNoiseState state, uint32_t x, uint32_t y);
+uint32_t generatePerlinNoise(perlinState state, uint32_t x, uint32_t y);
 ```
 
 Calculates the color for a given coordinate. Return value is the color, as an uint32 in the ARGB format. 
@@ -77,7 +75,7 @@ uint8_t blue = (color) & 0xFF;
 ### freePerlinNoise
 
 ```c
-void freePerlinNoise(perlinNoiseState state);
+void freePerlinNoise(perlinState state);
 ```
 
 Frees the allocated buffers and destroy the state. 
