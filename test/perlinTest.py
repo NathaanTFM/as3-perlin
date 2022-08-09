@@ -78,3 +78,5 @@ for idx, seed in enumerate(seedList):
             break
     else:
         print(str(idx) + "/" + str(len(seedList)), end="   \r")
+        
+    freePerlinNoise(state)
