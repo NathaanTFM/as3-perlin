@@ -1,7 +1,5 @@
 import math
-import struct
-import os
-from PIL import Image, ImageChops
+from PIL import Image
 
 def unmultiplyColor(color):
     if (color[3] != 255):
@@ -27,13 +25,10 @@ def generateRandomArrays(randomSeed):
     elif randomSeed == 0x7FFFFFFF:
         randomSeed = 0x7FFFFFFE
         
-    loops = 0
-    
     for doubleArray in doubleArrays:
         for v19 in range(0, 512, 2):
             for j in range(2):
                 randomSeed = -2836 * (randomSeed // 127773) + 16807 * (randomSeed % 127773)
-                loops += 1
                 
                 if randomSeed <= 0:
                     randomSeed += 0x7FFFFFFF
