@@ -1,6 +1,28 @@
 # as3-perlin
 Accurate recreation of AS3 perlin noise function
 
+## Accuracy
+
+This library has been tested with over 15k randomly generated Perlin Noises (check the `test` directory for more information).
+
+The only mismatches happened when Flash gave up on rendering the bitmap because there were too many octaves. The library does NOT behave that way, as you have to get every pixel separately with the `generatePerlinNoise` function (whereas Flash does it all at once).
+
+![perlin noise with right part missing](images/lazy.png)
+
+```as
+bitmapData.perlinNoise(100, 300, 30, 0, true, true, 7, false);
+```
+
+Please note that there is another edge case: for some seeds, Flash Player may divide a vector coordinate by zero, thus causing weird rendering issues. The library behaves the same way, but you could disable this by replacing `INFINITY` to 0 in `perlinNoise.c`. I might add a parameter to toggle this behaviour later, but this library aims to be accurate with Flash Player's implementation.
+
+![colored perlin noise with purple squares](images/div0.png)
+
+```as
+bitmapData.perlinNoise(500, 500, 16, 346, true, true, 7, false);
+```
+
+
+
 ## Documentation
 
 ### initPerlinNoise
