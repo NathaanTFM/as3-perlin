@@ -18,7 +18,7 @@ initPerlinNoise.argtypes = (ctypes.c_uint32, ctypes.c_uint32,
 initPerlinNoise.restype = ctypes.c_void_p
 
 generatePerlinNoise = perlinNoise.generatePerlinNoise
-generatePerlinNoise.argtypes = (ctypes.c_void_p, ctypes.c_uint32, ctypes.c_uint32)
+generatePerlinNoise.argtypes = (ctypes.c_void_p, ctypes.c_uint32, ctypes.c_uint32, ctypes.c_void_p)
 generatePerlinNoise.restype = ctypes.c_uint32
 
 freePerlinNoise = perlinNoise.freePerlinNoise

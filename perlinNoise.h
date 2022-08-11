@@ -19,7 +19,7 @@ perlinState initPerlinNoise(
         uint8_t channelOptions, bool grayScale,
         perlinVector2* offsets);
 
-uint32_t generatePerlinNoise(perlinState state, uint32_t x, uint32_t y);
+uint32_t generatePerlinNoise(perlinState state, uint32_t width, uint32_t height, uint32_t* out);
 
 void freePerlinNoise(perlinState state);
 #endif

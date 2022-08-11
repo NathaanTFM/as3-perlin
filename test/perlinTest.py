@@ -1,14 +1,13 @@
-import sys
+import ctypes
 import os
 import itertools
+import queue
+import threading
+import multiprocessing
+import time
 
 from perlinNoise import initPerlinNoise, generatePerlinNoise, freePerlinNoise, perlinVector2
 from PIL import Image
-
-def random():
-    global _seed
-    _seed = (-2836 * (_seed // 127773) + 16807 * (_seed % 127773)) & 0xFFFFFFFF
-    return _seed / 4294967296
     
 def saveMismatch(state, seed, bmpWidth, bmpHeight, flashIm):
     im = Image.new("RGBA", (bmpWidth*2, bmpHeight))
@@ -16,7 +15,7 @@ def saveMismatch(state, seed, bmpWidth, bmpHeight, flashIm):
     
     pix = im.load()
     for x, y in itertools.product(range(bmpWidth), range(bmpHeight)):
-        color = generatePerlinNoise(state, x, y)
+        color = colors[y * bmpWidth + x]
         red = (color >> 16) & 0xFF
         green = (color >> 8) & 0xFF
         blue = color & 0xFF
@@ -25,26 +24,21 @@ def saveMismatch(state, seed, bmpWidth, bmpHeight, flashIm):
         pix[bmpWidth+x, y] = (red, green, blue, alpha)
         
     im.save("cperlin-" + str(seed) + ".png")
-    
-path = os.path.join(os.environ["AppData"], "perlinTest", "Local Store", "generated")
 
-seedList = []
-
-for file in os.listdir(path):
-    if not (file.startswith("perlin-") and file.endswith(".png")):
-        continue
-        
-    seedList.append(int(file[7:-4]))
+def testSeed(seed):
+    def random():
+        nonlocal seed
+        seed = (-2836 * (seed // 127773) + 16807 * (seed % 127773)) & 0xFFFFFFFF
+        return seed / 4294967296
     
-for idx, seed in enumerate(seedList):
-    _seed = seed
+    path = os.path.join(root, "perlin-" + str(seed) + ".png")
     
     bmpWidth = int(100 + random() * 100)
     bmpHeight = int(100 + random() * 100)
     baseX = random() * 400
     baseY = random() * 400
     numOctaves = int(random() * 32)
-    
+        
     if random() < 0.5:
         randomSeed = int(random() * -0x80000000 - 1)
     else:
@@ -62,11 +56,14 @@ for idx, seed in enumerate(seedList):
     
     state = initPerlinNoise(bmpWidth, bmpHeight, baseX, baseY, numOctaves, randomSeed, stitch, fractalNoise, channelOptions, grayScale, offsets)
     
-    im = Image.open(os.path.join(path, "perlin-" + str(seed) + ".png"))
+    im = Image.open(path)
     pix = im.load()
     
+    colors = (ctypes.c_uint32 * (bmpWidth * bmpHeight))()
+    generatePerlinNoise(state, bmpWidth, bmpHeight, ctypes.byref(colors))
+    
     for x, y in itertools.product(range(bmpWidth), range(bmpHeight)):
-        color = generatePerlinNoise(state, x, y)
+        color = colors[y * bmpWidth + x]
         red = (color >> 16) & 0xFF
         green = (color >> 8) & 0xFF
         blue = color & 0xFF
@@ -76,7 +73,45 @@ for idx, seed in enumerate(seedList):
             print("Mismatch! Pixel %d, %d, got %r - expected %r" % (x, y, (red, green, blue, alpha), pix[x, y]))
             saveMismatch(state, seed, bmpWidth, bmpHeight, im)
             break
-    else:
-        print(str(idx) + "/" + str(len(seedList)), end="   \r")
         
     freePerlinNoise(state)
+    
+
+def threadfunc(seedList):
+    while True:
+        try:
+            seed = seedList.get(block=False)
+        except queue.Empty:
+            break
+            
+        testSeed(seed)
+        
+root = os.path.join(os.environ["AppData"], "perlinTest", "Local Store", "generated")
+
+if __name__ == "__main__":
+    seedList = multiprocessing.Queue()
+
+    for file in os.listdir(root):
+        if not (file.startswith("perlin-") and file.endswith(".png")):
+            continue
+            
+        seedList.put(int(file[7:-4]))
+        
+    origLength = seedList.qsize()
+
+    for n in range(2):
+        proc = multiprocessing.Process(target=threadfunc, args=(seedList,))
+        proc.start()
+        
+    try:
+        while True:
+            print(str(origLength - seedList.qsize()) + "/" + str(origLength))
+            time.sleep(0.5)
+            
+    except KeyboardInterrupt:
+        print("STOP")
+        while True:
+            try:
+                seed = seedList.get(block=False)
+            except queue.Empty:
+                break

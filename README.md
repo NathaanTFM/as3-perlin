@@ -1,11 +1,12 @@
 # as3-perlin
 Accurate recreation of AS3 perlin noise function
 
+
 ## Accuracy
 
 This library has been tested with over 15k randomly generated Perlin Noises (check the `test` directory for more information).
 
-The only mismatches happened when Flash gave up on rendering the bitmap because there were too many octaves. The library does NOT behave that way, as you have to get every pixel separately with the `generatePerlinNoise` function (whereas Flash does it all at once).
+Flash sometimes has trouble rendering the bitmap when there are too many octaves. The library also behaves that way, but you can disable it by defining `PERLIN_FIX_OVERFLOW` at build time.
 
 ![perlin noise with right part missing](images/lazy.png)
 
@@ -13,13 +14,14 @@ The only mismatches happened when Flash gave up on rendering the bitmap because 
 bitmapData.perlinNoise(100, 300, 30, 0, true, true, 7, false);
 ```
 
-Please note that there is another edge case: for some seeds, Flash Player may divide a vector coordinate by zero, thus causing weird rendering issues. The library behaves the same way, but you could disable this by replacing `INFINITY` to 0 in `perlinNoise.c`. I might add a parameter to toggle this behaviour later, but this library aims to be accurate with Flash Player's implementation.
+Please note that there is another edge case: for some seeds, Flash Player may divide a vector coordinate by zero, thus causing weird rendering issues. The library behaves the same way, but you can prevent it from happening by defining `PERLIN_FIX_DIVIDE` at build time.
 
 ![colored perlin noise with purple squares](images/div0.png)
 
 ```as
 bitmapData.perlinNoise(500, 500, 16, 346, true, true, 7, false);
 ```
+
 
 ## Building
 
@@ -28,6 +30,7 @@ This library has no dependencies. You should be able to build it with your prefe
 It does not export any functions; you might have to add `__declspec(dllexport)` before the 3 functions in `perlinNoise.h` if you wanna build it as a DLL with MSVC. It is probably not be necessary with gcc when building as a shared library.
 
 There is a Python wrapper available in `tests/perlinNoise.py` if you manage to build a shared library.
+
 
 ## Documentation
 
@@ -88,11 +91,13 @@ The `offsets` parameter is optional ; when passed, it must contain at least `num
 ### generatePerlinNoise
 
 ```c
-uint32_t generatePerlinNoise(perlinState state, uint32_t x, uint32_t y);
+uint32_t generatePerlinNoise(perlinState state, uint32_t width, uint32_t height, uint32_t* out);
 ```
 
-Calculates the color for a given coordinate. Return value is the color, as an uint32 in the ARGB format. 
+- If the parameter `out` is not NULL: calculates every pixel for an image of a given size (width, height). `out` must have space for `width*height` elements, meaning `4*width*height` bytes. To get the color at a given coordinate, `out[y * width + x]`.
+- If the parameter `out` is NULL: calculates the color for a given coordinate. Return value is the color.
 
+Color values are by default in the ARGB format, but you can change it by defining one of those preprocessor variables: `PERLIN_RGBA`, `PERLIN_ABGR`, `PERLIN_BGRA`.
 ```c
 uint8_t alpha = (color >> 24) & 0xFF;
 uint8_t red = (color >> 16) & 0xFF;
@@ -107,6 +112,7 @@ void freePerlinNoise(perlinState state);
 ```
 
 Frees the allocated buffers and destroy the state. 
+
 
 ## References
 
