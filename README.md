@@ -1,3 +1,5 @@
+# NOTE: This was done by reverse engineering flash! 
+
 # as3-perlin
 Accurate recreation of AS3 perlin noise function
 
